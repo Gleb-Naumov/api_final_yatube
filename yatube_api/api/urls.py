@@ -4,7 +4,7 @@ from rest_framework.routers import SimpleRouter
 from .views import PostView, GroupView, CommentView, FollowView
 
 router = SimpleRouter()
-router.register('posts', PostView)
+router.register('posts', PostView, basename='posts')
 router.register('groups', GroupView)
 router.register('follow', FollowView)
 router.register(r'posts/(?P<post_id>\d+)/comments', CommentView)
