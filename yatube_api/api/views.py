@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, mixins, filters
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.shortcuts import get_object_or_404
 
 from .serializers import (PostSerializer,
@@ -7,43 +8,40 @@ from .serializers import (PostSerializer,
                           GroupSerializer,
                           FollowSerializer)
 from posts.models import Post, Comment, Group, Follow
-from .permission import OwnerPerformUpdate, ReadOnly
+from .permission import IsOwnerCanUpdate
 
 
-class PostView(viewsets.ModelViewSet):
+class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     pagination_class = LimitOffsetPagination
-    permission_classes = (OwnerPerformUpdate,)
-
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return ReadOnly(),
-        return super().get_permissions()
+    permission_classes = (IsOwnerCanUpdate,
+                          permissions.IsAuthenticatedOrReadOnly,)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def perform_update(self, serializer):
-        super(PostView, self).perform_update(serializer)
+    def get_permissions(self):
+        if self.action == 'retrieve':
+            return (IsAuthenticatedOrReadOnly(),)
+        return super().get_permissions()
 
-    def perform_destroy(self, instance):
-        super(PostView, self).perform_destroy(instance)
 
-
-class GroupView(viewsets.ReadOnlyModelViewSet):
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
 
-class CommentView(viewsets.ModelViewSet):
+class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = (OwnerPerformUpdate,)
+    permission_classes = (IsOwnerCanUpdate,
+                          permissions.IsAuthenticatedOrReadOnly,)
 
     def get_permissions(self):
         if self.action == 'retrieve':
-            return ReadOnly(),
+            return (IsAuthenticatedOrReadOnly(),)
         return super().get_permissions()
 
     def get_queryset(self):
@@ -54,20 +52,13 @@ class CommentView(viewsets.ModelViewSet):
         post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
         serializer.save(post=post, author=self.request.user)
 
-    def perform_update(self, serializer):
-        super(CommentView, self).perform_update(serializer)
 
-    def perform_destroy(self, instance):
-        super(CommentView, self).perform_destroy(instance)
-
-
-class FollowView(mixins.CreateModelMixin,
-                 mixins.ListModelMixin,
-                 mixins.RetrieveModelMixin,
-                 viewsets.GenericViewSet):
+class FollowViewSet(mixins.CreateModelMixin,
+                    mixins.ListModelMixin,
+                    mixins.RetrieveModelMixin,
+                    viewsets.GenericViewSet):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
-    permission_classes = (permissions.IsAuthenticated,)
     search_fields = ('following__username',)
     filter_backends = (filters.SearchFilter,)
 
